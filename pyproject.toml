@@ -1,0 +1,59 @@
+[project]
+name = "compulab"
+version = "0.1.0"
+description = "Administración de Laboratorios CompuLab — Proyecto de Diseño de Software"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    "psycopg[binary]>=3.2",
+    "tzdata>=2024.1",
+    "uvicorn>=0.30",
+]
+
+[dependency-groups]
+dev = [
+    "httpx2>=2.16.0",
+    "import-linter>=2.1",
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/compulab"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Las pruebas de integración necesitan PostgreSQL: se corren aparte con `-m integracion`.
+addopts = "-ra --strict-markers -m 'not integracion'"
+markers = ["integracion: necesita PostgreSQL 14 corriendo (docker compose up -d db)"]
+
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+# --- Función de aptitud FF-1: regla de dependencia entre capas -------------------
+# Una capa solo puede importar a las que están DEBAJO de ella en la lista.
+# Si el dominio importa la aplicación, o la aplicación importa PostgreSQL o
+# FastAPI, `lint-imports` falla (y con él tests/aptitud/test_capas.py).
+[tool.importlinter]
+root_package = "compulab"
+
+[[tool.importlinter.contracts]]
+id = "capas-hexagonales"
+name = "Regla de dependencia entre capas (hexagonal)"
+type = "layers"
+layers = [
+    "compulab.api",
+    "compulab.infraestructura",
+    "compulab.aplicacion",
+    "compulab.dominio",
+]

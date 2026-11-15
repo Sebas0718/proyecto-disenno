@@ -1,0 +1,26 @@
+# Enunciado del curso (no se versiona)
+Descripción Proyecto Diseño.md
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+build/
+dist/
+
+# Herramientas
+.pytest_cache/
+.ruff_cache/
+.import_linter_cache/
+.coverage
+htmlcov/
+
+# Configuración local y secretos
+.env
+
+# Editores / sistema
+.vscode/
+.idea/
+.DS_Store
+archivos/
