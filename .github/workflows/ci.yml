@@ -1,0 +1,33 @@
+# Build de CompuLab: si una prueba o una función de aptitud falla, el build falla.
+name: build
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_DB: compulab
+          POSTGRES_USER: compulab
+          POSTGRES_PASSWORD: compulab
+        ports: ["5440:5432"]
+        options: >-
+          --health-cmd "pg_isready -U compulab" --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Instalar
+        run: uv sync --frozen
+      - name: Estilo
+        run: uv run ruff check .
+      - name: "FF-1: regla de dependencia entre capas"
+        run: uv run lint-imports
+      - name: Pruebas (dominio, aplicación, API, FF-1 y FF-2)
+        run: uv run pytest
+      - name: Pruebas de integración (PostgreSQL 14)
+        run: uv run pytest -m integracion

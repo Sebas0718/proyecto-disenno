@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>CompuLab · Laboratorios</title>
+    <link rel="stylesheet" href="css/estilos.css" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%231f5fbf'/><rect x='7' y='8' width='18' height='12' rx='2' fill='white'/><rect x='12' y='22' width='8' height='2' fill='white'/></svg>"
+    />
+  </head>
+  <body>
+    <a class="saltar" href="#contenido">Saltar al contenido</a>
+
+    <header class="barra">
+      <div class="marca">
+        <span class="marca__logo" aria-hidden="true"></span>
+        <div>
+          <strong>CompuLab</strong>
+          <span class="marca__sub">Escuela de Computación</span>
+        </div>
+      </div>
+
+      <div class="sesion">
+        <label for="usuario" class="sesion__etiqueta">Entrar como</label>
+        <select id="usuario" class="campo campo--compacto"></select>
+        <button id="avisos-boton" class="boton boton--fantasma" type="button" aria-haspopup="true"
+          aria-expanded="false" aria-controls="avisos-panel">
+          Avisos <span id="avisos-contador" class="insignia" hidden>0</span>
+        </button>
+      </div>
+    </header>
+
+    <div id="avisos-panel" class="avisos" hidden>
+      <h2 class="avisos__titulo">Avisos recientes</h2>
+      <ul id="avisos-lista" class="avisos__lista"></ul>
+    </div>
+
+    <nav class="pestanas" aria-label="Secciones">
+      <ul id="pestanas" role="tablist"></ul>
+    </nav>
+
+    <main id="contenido" class="contenido" tabindex="-1">
+      <p class="vacio">Cargando…</p>
+    </main>
+
+    <div id="mensajes" class="mensajes" aria-live="polite" aria-atomic="false"></div>
+
+    <dialog id="dialogo" class="dialogo">
+      <form method="dialog">
+        <h2 id="dialogo-titulo"></h2>
+        <p id="dialogo-texto"></p>
+        <div class="dialogo__acciones">
+          <button value="cancelar" class="boton boton--fantasma">Cancelar</button>
+          <button value="confirmar" id="dialogo-confirmar" class="boton boton--primario">Confirmar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,46 @@
+# Pila de desarrollo/demostración: PostgreSQL 14 + API (que también sirve las pantallas).
+# Puertos alternos para no chocar con otros proyectos: BD en 5440, web/API en 8090.
+#
+#   docker compose up --build -d     -> http://localhost:8090
+#   docker compose down -v           -> borra también la base (se recrea con datos de demo)
+name: compulab
+
+services:
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: compulab
+      POSTGRES_USER: compulab
+      POSTGRES_PASSWORD: compulab
+      TZ: America/Costa_Rica
+    ports:
+      - "127.0.0.1:5440:5432"
+    volumes:
+      # Postgres ejecuta los .sql de esta carpeta la primera vez que crea la base.
+      - ./db/migraciones:/docker-entrypoint-initdb.d:ro
+      - datos-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U compulab -d compulab"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    environment:
+      COMPULAB_ALMACEN: postgres
+      COMPULAB_DB_URL: postgresql://compulab:compulab@db:5432/compulab
+      COMPULAB_DATOS_DEMO: "1"
+      COMPULAB_ARCHIVOS: /datos/archivos
+    ports:
+      - "127.0.0.1:8090:8000"
+    volumes:
+      - archivos-becas:/datos/archivos
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  datos-postgres:
+  archivos-becas:
