@@ -29,6 +29,7 @@ def test_el_verificador_si_revisa_archivos_del_dominio():
         ("from pathlib import Path\n", "pathlib"),
         ("import psycopg\n", "psycopg"),
         ("import urllib.request\n", "urllib.request"),
+        ("import httpx2\n", "httpx2"),
         ("import time\n", "import prohibido en el dominio: time"),
         ("from datetime import datetime\nx = datetime.now()\n", "datetime.now()"),
         ("import datetime\nx = datetime.date.today()\n", "date.today()"),

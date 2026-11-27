@@ -24,7 +24,7 @@ MODULOS_PROHIBIDOS = frozenset(
         # archivos y sistema operativo
         "os", "io", "pathlib", "shutil", "tempfile", "glob", "sys", "subprocess",
         # red
-        "socket", "ssl", "http", "urllib", "requests", "httpx", "smtplib",
+        "socket", "ssl", "http", "urllib", "requests", "httpx", "httpx2", "smtplib",
         # bases de datos y frameworks
         "sqlite3", "psycopg", "psycopg2", "sqlalchemy", "fastapi", "starlette", "pydantic",
         # reloj y azar
