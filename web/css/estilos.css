@@ -51,6 +51,10 @@
 
 * { box-sizing: border-box; }
 
+/* Cualquier `display` de una clase le gana a la regla del navegador para [hidden]
+   (p. ej., el contador de avisos, que es una .insignia): esto la hace valer siempre. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--fondo);
@@ -108,7 +112,7 @@ p { margin: 0 0 0.75rem; }
 .pestanas { background: var(--superficie); border-bottom: 1px solid var(--borde); overflow-x: auto; }
 .pestanas ul { display: flex; gap: 0.25rem; margin: 0; padding: 0 0.5rem; list-style: none; }
 .pestana {
-  display: block;
+  display: inline-flex; align-items: center; gap: 0.45rem;
   padding: 0.8rem 1rem;
   border: 0;
   border-bottom: 3px solid transparent;
@@ -204,9 +208,10 @@ p { margin: 0 0 0.75rem; }
 
 /* --- Estados (siempre con texto, no solo color) ---------------------------------- */
 .insignia {
-  display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px;
+  display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.1rem 0.5rem; border-radius: 999px;
   font-size: 0.75rem; font-weight: 700; background: var(--superficie-2); color: var(--texto);
 }
+.insignia .icono { width: 1em; height: 1em; }
 .insignia--exito { background: var(--exito-suave); color: var(--exito); }
 .insignia--aviso { background: var(--aviso-suave); color: var(--aviso); }
 .insignia--peligro { background: var(--peligro-suave); color: var(--peligro); }
@@ -233,7 +238,7 @@ p { margin: 0 0 0.75rem; }
 }
 .maquina[aria-pressed="true"] { border-color: var(--primario); background: var(--primario-suave); }
 .maquina[disabled] { cursor: not-allowed; opacity: 0.6; background: var(--superficie-2); }
-.maquina__codigo { font-weight: 700; }
+.maquina__codigo { display: flex; align-items: center; gap: 0.4rem; font-weight: 700; }
 .maquina__detalle { font-size: 0.8rem; color: var(--texto-suave); }
 
 /* --- Tablas --------------------------------------------------------------------------- */
@@ -252,8 +257,9 @@ tfoot td { font-weight: 700; }
 .mensajes { position: fixed; right: 1rem; bottom: 1rem; left: 1rem; display: grid; gap: 0.5rem; justify-items: end; z-index: 20; pointer-events: none; }
 .mensaje {
   pointer-events: auto;
+  display: flex; gap: 0.6rem; align-items: flex-start;
   max-width: 28rem;
-  padding: 0.75rem 1rem;
+  padding: 0.75rem 0.75rem 0.75rem 1rem;
   border-radius: var(--radio);
   background: var(--superficie);
   border: 1px solid var(--borde);
@@ -261,7 +267,43 @@ tfoot td { font-weight: 700; }
   box-shadow: 0 6px 24px rgb(0 0 0 / 18%);
 }
 .mensaje--error { border-left-color: var(--peligro); }
+.mensaje > .icono { margin-top: 0.1rem; color: var(--exito); }
+.mensaje--error > .icono { color: var(--peligro); }
+.mensaje__texto { flex: 1; }
 .mensaje strong { display: block; margin-bottom: 0.15rem; }
+/* 44 × 44 px de área táctil (WCAG 2.5.5), sin agrandar el mensaje. */
+.mensaje__cerrar {
+  display: inline-flex; align-items: center; justify-content: center; flex: none;
+  width: 44px; height: 44px; margin: -0.6rem -0.5rem -0.6rem 0;
+  border: 0; border-radius: 8px; background: none; color: var(--texto-suave); cursor: pointer;
+}
+.mensaje__cerrar:hover { background: var(--superficie-2); color: var(--texto); }
+
+/* --- Íconos ------------------------------------------------------------------------------
+   Lucide 1.82.0 (ISC; licencia en web/iconos/LICENSE), copiados al repo: sin CDN (ADR-0013).
+   El SVG se usa como máscara y se pinta con currentColor, así toma el color del texto
+   también en modo oscuro. Son decorativos: siempre van junto a un texto (aria-hidden). */
+.icono {
+  display: inline-block; flex: none;
+  width: 1.15em; height: 1.15em;
+  vertical-align: -0.2em;
+  background-color: currentColor;
+  -webkit-mask: var(--icono) center / contain no-repeat;
+  mask: var(--icono) center / contain no-repeat;
+}
+.icono--bell { --icono: url("../iconos/bell.svg"); }
+.icono--calendar-check { --icono: url("../iconos/calendar-check.svg"); }
+.icono--calendar-days { --icono: url("../iconos/calendar-days.svg"); }
+.icono--check { --icono: url("../iconos/check.svg"); }
+.icono--circle-alert { --icono: url("../iconos/circle-alert.svg"); }
+.icono--circle-check { --icono: url("../iconos/circle-check.svg"); }
+.icono--clock { --icono: url("../iconos/clock.svg"); }
+.icono--monitor { --icono: url("../iconos/monitor.svg"); }
+.icono--monitor-off { --icono: url("../iconos/monitor-off.svg"); }
+.icono--receipt { --icono: url("../iconos/receipt.svg"); }
+.icono--x { --icono: url("../iconos/x.svg"); }
+/* En alto contraste de Windows el fondo se fuerza y el ícono desaparecería. */
+@media (forced-colors: active) { .icono { forced-color-adjust: none; background-color: CanvasText; } }
 
 .dialogo { border: 1px solid var(--borde); border-radius: var(--radio); background: var(--superficie); color: var(--texto); max-width: 30rem; padding: 1.25rem; }
 .dialogo::backdrop { background: rgb(0 0 0 / 45%); }

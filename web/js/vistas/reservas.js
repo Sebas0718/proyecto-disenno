@@ -3,7 +3,7 @@
 // errores no se pueden cometer desde la pantalla.
 import { api } from "../api.js";
 import { campo, conBotonOcupado, encabezado, lista, selectorLaboratorio, tarjeta, vacio } from "../componentes.js";
-import { avisar, el, insigniaEstado } from "../dom.js";
+import { avisar, el, icono, insigniaEstado } from "../dom.js";
 import { aFecha, aHora, aMinutos, fechaCorta, hora, isoFecha, sumarMinutos } from "../formatos.js";
 
 const estado = { laboratorio: null, fecha: null, maquina: null };
@@ -60,7 +60,7 @@ export async function mostrar(contenedor, contexto) {
         "aria-pressed": String(m.id === estado.maquina),
         onclick: () => elegir(m.id),
       },
-      el("span", { clase: "maquina__codigo" }, m.codigo),
+      el("span", { clase: "maquina__codigo" }, icono(m.en_servicio ? "monitor" : "monitor-off"), m.codigo),
       el("span", { clase: "maquina__detalle" },
         !m.en_servicio ? "Fuera de servicio"
           : !abierto.length ? "Laboratorio cerrado"

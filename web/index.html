@@ -26,8 +26,9 @@
       <div class="sesion">
         <label for="usuario" class="sesion__etiqueta">Entrar como</label>
         <select id="usuario" class="campo campo--compacto"></select>
-        <button id="avisos-boton" class="boton boton--fantasma" type="button" aria-haspopup="true"
+        <button id="avisos-boton" class="boton boton--fantasma" type="button"
           aria-expanded="false" aria-controls="avisos-panel">
+          <span class="icono icono--bell" aria-hidden="true"></span>
           Avisos <span id="avisos-contador" class="insignia" hidden>0</span>
         </button>
       </div>
@@ -43,7 +44,11 @@
     </nav>
 
     <main id="contenido" class="contenido" tabindex="-1">
-      <p class="vacio">Cargando…</p>
+      <!-- El panel de la pestaña va dentro de <main>: así <main> sigue siendo el punto de
+           referencia al que lleva "Saltar al contenido". -->
+      <div id="panel" role="tabpanel" tabindex="0">
+        <p class="vacio">Cargando…</p>
+      </div>
     </main>
 
     <div id="mensajes" class="mensajes" aria-live="polite" aria-atomic="false"></div>

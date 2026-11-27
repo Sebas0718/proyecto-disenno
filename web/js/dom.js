@@ -41,12 +41,25 @@ const TITULOS = {
   "SIN-CONEXION": "Sin conexión",
 };
 
+// Ícono decorativo de Lucide (web/iconos). Va siempre junto a un texto que dice lo
+// mismo, así que se oculta al lector de pantalla para que no lo repita.
+export function icono(nombre) {
+  return el("span", { clase: `icono icono--${nombre}`, "aria-hidden": "true" });
+}
+
 export function avisar(titulo, texto = "", tipo = "exito") {
   const contenedor = document.getElementById("mensajes");
-  const mensaje = el("div", { clase: `mensaje mensaje--${tipo}`, role: tipo === "error" ? "alert" : "status" },
-    el("strong", {}, titulo), texto);
+  const mensaje = el("div", { clase: `mensaje mensaje--${tipo}` },
+    icono(tipo === "error" ? "circle-alert" : "circle-check"),
+    // El rol va en el texto y no en todo el mensaje, para que el lector de pantalla
+    // anuncie el mensaje sin leer también el botón de cerrar.
+    el("div", { clase: "mensaje__texto", role: tipo === "error" ? "alert" : "status" }, el("strong", {}, titulo), texto),
+    el("button", { clase: "mensaje__cerrar", type: "button", "aria-label": "Cerrar mensaje", onclick: () => mensaje.remove() },
+      icono("x")));
   contenedor.append(mensaje);
-  setTimeout(() => mensaje.remove(), tipo === "error" ? 9000 : 5000);
+  // Los de éxito se van solos. Los errores se quedan hasta que se cierran, para que dé
+  // tiempo de leer qué pasó y qué hacer (H9, WCAG 2.2.1).
+  if (tipo !== "error") setTimeout(() => mensaje.remove(), 5000);
 }
 
 export function avisarError(error) {
@@ -74,7 +87,10 @@ const ESTADOS = {
   CANCELADA: ["Cancelada", "peligro"],
 };
 
+// El ícono refuerza el color, pero el estado siempre se lee en el texto (WCAG 1.4.1).
+const ICONO_DEL_TONO = { exito: "check", aviso: "clock", peligro: "x" };
+
 export function insigniaEstado(estado) {
   const [texto, tono] = ESTADOS[estado] || [estado, ""];
-  return el("span", { clase: `insignia insignia--${tono}` }, texto);
+  return el("span", { clase: `insignia insignia--${tono}` }, ICONO_DEL_TONO[tono] ? icono(ICONO_DEL_TONO[tono]) : null, texto);
 }

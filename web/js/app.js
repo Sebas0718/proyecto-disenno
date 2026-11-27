@@ -1,6 +1,6 @@
 // Punto de entrada: sesión simulada, pestañas por rol y avisos.
 import { api, usarUsuario } from "./api.js";
-import { avisarError, el } from "./dom.js";
+import { avisarError, el, icono } from "./dom.js";
 import * as cierre from "./vistas/cierre.js";
 import * as horario from "./vistas/horario.js";
 import * as reservas from "./vistas/reservas.js";
@@ -13,15 +13,15 @@ const CLAVE_USUARIO = "compulab.usuario";
 function seccionesPara(yo) {
   if (yo.rol === "COORDINADOR_SOPORTE") {
     return [
-      { id: "horario", titulo: "Horario de laboratorios", vista: horario },
-      { id: "cierre", titulo: "Cierre de mes", vista: cierre },
+      { id: "horario", titulo: "Horario de laboratorios", icono: "calendar-days", vista: horario },
+      { id: "cierre", titulo: "Cierre de mes", icono: "receipt", vista: cierre },
     ];
   }
   if (yo.rol === "COORDINADOR_LABORATORIO") {
-    return [{ id: "horario", titulo: "Horario de mi laboratorio", vista: horario }];
+    return [{ id: "horario", titulo: "Horario de mi laboratorio", icono: "calendar-days", vista: horario }];
   }
-  const secciones = [{ id: "reservas", titulo: "Reservar máquina", vista: reservas }];
-  if (yo.es_asistente) secciones.unshift({ id: "turnos", titulo: "Mis turnos", vista: turnos });
+  const secciones = [{ id: "reservas", titulo: "Reservar máquina", icono: "monitor", vista: reservas }];
+  if (yo.es_asistente) secciones.unshift({ id: "turnos", titulo: "Mis turnos", icono: "calendar-check", vista: turnos });
   return secciones;
 }
 
@@ -73,7 +73,10 @@ async function iniciar() {
   const guardado = parametros.get("usuario") || leerPreferencia();
   if (guardado && usuarios.some((u) => u.id === guardado)) selector.value = guardado;
   selector.addEventListener("change", () => entrar(selector.value));
+  document.getElementById("pestanas").addEventListener("keydown", moverEntrePestanas);
   document.getElementById("avisos-boton").addEventListener("click", alternarAvisos);
+  document.addEventListener("keydown", cerrarAvisosConEscape);
+  document.addEventListener("click", cerrarAvisosAlClicFuera);
   await entrar(selector.value);
 }
 
@@ -93,15 +96,18 @@ async function entrar(usuarioId) {
   }
 }
 
+// Pestañas con el patrón de WAI-ARIA (tablist / tab / tabpanel). Solo la pestaña
+// abierta entra en el orden del Tab; entre pestañas se pasa con las flechas.
 function pintarPestanas(secciones) {
   const lista = document.getElementById("pestanas");
   lista.replaceChildren(
-    ...secciones.map((s, i) =>
+    ...secciones.map((s) =>
       el("li", { role: "presentation" },
         el("button", {
-          clase: "pestana", role: "tab", id: `pestana-${s.id}`, "aria-selected": i === 0 ? "true" : "false",
+          clase: "pestana", role: "tab", type: "button", id: `pestana-${s.id}`, "aria-controls": "panel",
+          "aria-selected": "false", tabindex: "-1",
           onclick: () => abrir(s, secciones),
-        }, s.titulo)),
+        }, icono(s.icono), s.titulo)),
     ),
   );
   const pedida = secciones.find((s) => s.id === seccionPedida);
@@ -109,16 +115,31 @@ function pintarPestanas(secciones) {
   abrir(pedida || secciones[0], secciones);
 }
 
+// Flechas izquierda/derecha (dando la vuelta), Inicio y Fin mueven el foco entre
+// pestañas; Enter o Espacio abren la pestaña con el foco. La activación es manual, y no
+// al mover el foco, porque abrir una pestaña pide datos al servidor (WAI-ARIA APG).
+function moverEntrePestanas(evento) {
+  const pestanas = [...document.querySelectorAll("#pestanas [role=tab]")];
+  const actual = pestanas.indexOf(document.activeElement);
+  const destino = { ArrowRight: actual + 1, ArrowLeft: actual - 1, Home: 0, End: pestanas.length - 1 }[evento.key];
+  if (actual === -1 || destino === undefined) return;
+  evento.preventDefault();
+  pestanas[(destino + pestanas.length) % pestanas.length].focus();
+}
+
 async function abrir(seccion, secciones) {
   for (const s of secciones) {
-    document.getElementById(`pestana-${s.id}`).setAttribute("aria-selected", s === seccion ? "true" : "false");
+    const pestana = document.getElementById(`pestana-${s.id}`);
+    pestana.setAttribute("aria-selected", String(s === seccion));
+    pestana.setAttribute("tabindex", s === seccion ? "0" : "-1");
   }
-  const contenido = document.getElementById("contenido");
-  contenido.replaceChildren(el("p", { clase: "vacio" }, "Cargando…"));
+  const panel = document.getElementById("panel");
+  panel.setAttribute("aria-labelledby", `pestana-${seccion.id}`);
+  panel.replaceChildren(el("p", { clase: "vacio" }, "Cargando…"));
   try {
-    await seccion.vista.mostrar(contenido, contexto);
+    await seccion.vista.mostrar(panel, contexto);
   } catch (error) {
-    contenido.replaceChildren(el("p", { clase: "nota nota--peligro" }, error.message));
+    panel.replaceChildren(el("p", { clase: "nota nota--peligro" }, error.message));
   }
 }
 
@@ -143,10 +164,27 @@ function pintarAvisos(avisos) {
   );
 }
 
+// El panel de avisos se abre y cierra con su botón, con Esc (el foco vuelve al botón)
+// o con un clic fuera de él.
+function mostrarAvisos(visible) {
+  document.getElementById("avisos-panel").hidden = !visible;
+  document.getElementById("avisos-boton").setAttribute("aria-expanded", String(visible));
+}
+
 function alternarAvisos() {
+  mostrarAvisos(document.getElementById("avisos-panel").hidden);
+}
+
+function cerrarAvisosConEscape(evento) {
+  if (evento.key !== "Escape" || document.getElementById("avisos-panel").hidden) return;
+  mostrarAvisos(false);
+  document.getElementById("avisos-boton").focus();
+}
+
+function cerrarAvisosAlClicFuera(evento) {
   const panel = document.getElementById("avisos-panel");
-  panel.hidden = !panel.hidden;
-  document.getElementById("avisos-boton").setAttribute("aria-expanded", String(!panel.hidden));
+  const boton = document.getElementById("avisos-boton");
+  if (!panel.hidden && !panel.contains(evento.target) && !boton.contains(evento.target)) mostrarAvisos(false);
 }
 
 iniciar();
