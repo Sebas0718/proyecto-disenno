@@ -3,7 +3,7 @@
 // errores no se pueden cometer desde la pantalla.
 import { api } from "../api.js";
 import { campo, conBotonOcupado, encabezado, lista, selectorLaboratorio, tarjeta, vacio } from "../componentes.js";
-import { avisar, el, insigniaEstado } from "../dom.js";
+import { avisar, el, icono, insigniaEstado } from "../dom.js";
 import { aFecha, aHora, aMinutos, fechaCorta, hora, isoFecha, sumarMinutos } from "../formatos.js";
 
 const estado = { laboratorio: null, fecha: null, maquina: null };
@@ -54,19 +54,31 @@ export async function mostrar(contenedor, contexto) {
       ? abierto.map((f) => el("span", { clase: "insignia insignia--exito" }, `Abierto ${hora(f.inicio)}–${hora(f.fin)}`))
       : el("span", { clase: "insignia insignia--peligro" }, "Cerrado todo el día: no hay turnos de asistente. Elija otra fecha."));
 
-  const maquinas = el("div", { clase: "maquinas" },
-    ocupacion.maquinas.map((m) =>
-      el("button", {
-          type: "button", clase: "maquina", disabled: !m.en_servicio || !abierto.length,
-          "aria-pressed": String(m.id === estado.maquina),
-          onclick: () => { estado.maquina = m.id; recargar(); },
-        },
-        el("span", { clase: "maquina__codigo" }, m.codigo),
-        el("span", { clase: "maquina__detalle" },
-          !m.en_servicio ? "Fuera de servicio"
-            : !abierto.length ? "Laboratorio cerrado"
-            : m.reservas.length ? `Ocupada: ${m.reservas.map((r) => `${hora(r.inicio)}–${hora(r.fin)}${r.propia ? " (suya)" : ""}`).join(", ")}`
-            : "Libre todo el horario abierto"))));
+  const botonesMaquina = ocupacion.maquinas.map((m) =>
+    el("button", {
+        type: "button", clase: "maquina", disabled: !m.en_servicio || !abierto.length,
+        "aria-pressed": String(m.id === estado.maquina),
+        onclick: () => elegir(m.id),
+      },
+      el("span", { clase: "maquina__codigo" }, icono(m.en_servicio ? "monitor" : "monitor-off"), m.codigo),
+      el("span", { clase: "maquina__detalle" },
+        !m.en_servicio ? "Fuera de servicio"
+          : !abierto.length ? "Laboratorio cerrado"
+          : m.reservas.length ? `Ocupada: ${m.reservas.map((r) => `${hora(r.inicio)}–${hora(r.fin)}${r.propia ? " (suya)" : ""}`).join(", ")}`
+          : "Libre todo el horario abierto")));
+  const maquinas = el("div", { clase: "maquinas" }, botonesMaquina);
+
+  // Hora del servidor (ADR-0009), no la del navegador.
+  const desde = estado.fecha === hoy ? aMinutos(hora(contexto.yo.ahora)) : 0;
+  const formulario = tarjeta({}, formularioReserva(ocupacion, desde, recargar));
+
+  // Elegir una máquina solo cambia cuál está marcada y el formulario: no vuelve a pedir
+  // datos ni pinta la vista entera, así el foco se queda en el botón que se apretó.
+  function elegir(maquinaId) {
+    estado.maquina = maquinaId;
+    ocupacion.maquinas.forEach((m, i) => botonesMaquina[i].setAttribute("aria-pressed", String(m.id === maquinaId)));
+    formulario.replaceChildren(formularioReserva(ocupacion, desde, recargar));
+  }
 
   contenedor.replaceChildren(
     encabezado("Reservar una máquina", "Máximo 2 horas por reserva, una reserva activa a la vez y 6 horas por semana."),
@@ -77,9 +89,7 @@ export async function mostrar(contenedor, contexto) {
         franjas,
         maquinas),
       el("div", { clase: "formulario" },
-        tarjeta({},
-          // Hora del servidor (ADR-0009), no la del navegador.
-          formularioReserva(ocupacion, estado.fecha === hoy ? aMinutos(hora(contexto.yo.ahora)) : 0, recargar)),
+        formulario,
         tarjeta({ titulo: "Mis reservas", id: "mis-reservas" },
           lista(mias, (r) =>
             el("li", {}, el("strong", {}, `${fechaCorta(r.inicio)} ${hora(r.inicio)}–${hora(r.fin)}`), ` · ${r.maquina_id.replace("M-", "")} `, insigniaEstado(r.estado),

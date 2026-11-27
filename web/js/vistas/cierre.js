@@ -26,6 +26,9 @@ export async function mostrar(contenedor, contexto) {
   selMes.value = `${anterior.getFullYear()}-${anterior.getMonth() + 1}`;
   if (selMes.selectedOptions[0]?.disabled) selMes.value = "";
   const botonCerrar = el("button", { clase: "boton boton--primario", type: "submit", disabled: !selMes.value }, "Cerrar mes");
+  // Si el mes anterior ya está cerrado, el selector arranca vacío: el botón se habilita
+  // en cuanto se elige otro mes.
+  selMes.addEventListener("change", () => { botonCerrar.disabled = !selMes.value; });
 
   async function cerrar(evento) {
     evento.preventDefault();
