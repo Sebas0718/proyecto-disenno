@@ -2,6 +2,7 @@
 // El formulario anticipa las reglas (tope, disponibilidad) para prevenir errores,
 // pero la decisión final siempre es del servidor (el dominio).
 import { api } from "../api.js";
+import { campo, encabezado, tarjeta } from "../componentes.js";
 import { avisar, avisarError, el, insigniaEstado } from "../dom.js";
 import { DIAS, aFecha, fechaCorta, hora, horas, isoFecha, minutosEntre, sumarDias } from "../formatos.js";
 
@@ -24,8 +25,7 @@ export async function mostrar(contenedor, { yo, refrescarAvisos }) {
 
   const selectorLab =
     propios.length > 1
-      ? el("div", { clase: "grupo" },
-          el("label", { for: "lab" }, "Laboratorio"),
+      ? campo("Laboratorio",
           el("select", { id: "lab", clase: "campo campo--compacto", onchange: (e) => { estado.laboratorio = e.target.value; recargar(); } },
             propios.map((l) => el("option", { value: l.id, selected: l.id === estado.laboratorio }, `${l.nombre} · ${l.campus}`))))
       : null;
@@ -36,18 +36,15 @@ export async function mostrar(contenedor, { yo, refrescarAvisos }) {
   };
 
   contenedor.replaceChildren(
-    el("div", { clase: "encabezado" },
-      el("div", {},
-        el("h1", {}, `Horario · ${laboratorio.nombre}`),
-        el("p", {}, `${laboratorio.campus} · semana ${horario.semana}`)),
+    encabezado(`Horario · ${laboratorio.nombre}`, `${laboratorio.campus} · semana ${horario.semana}`,
       el("div", { clase: "navegacion-semana" },
         selectorLab,
         el("button", { clase: "boton", onclick: moverSemana(-7), "aria-label": "Semana anterior" }, "‹ Anterior"),
         el("button", { clase: "boton", onclick: () => { estado.fecha = isoFecha(hoy); recargar(); } }, "Hoy"),
         el("button", { clase: "boton", onclick: moverSemana(7), "aria-label": "Semana siguiente" }, "Siguiente ›"))),
     el("div", { clase: "columnas" },
-      el("section", { clase: "tarjeta", "aria-label": "Turnos de la semana" }, vistaSemana(lunes, horario.turnos, hoy)),
-      el("section", { clase: "tarjeta", "aria-labelledby": "titulo-asignar" },
+      tarjeta({ etiqueta: "Turnos de la semana" }, vistaSemana(lunes, horario.turnos, hoy)),
+      tarjeta({ etiquetadaPor: "titulo-asignar" },
         formularioAsignar(lunes, hoy, asistentes, async (datos) => {
           try {
             const r = await api.asignarTurno({ ...datos, laboratorio_id: estado.laboratorio });
@@ -155,11 +152,9 @@ function formularioAsignar(lunes, hoy, asistentes, alEnviar) {
       },
     },
     el("h2", { id: "titulo-asignar" }, "Asignar turno"),
-    el("div", { clase: "grupo" }, el("label", { for: "asistente" }, "Asistente"), selAsistente),
-    el("div", { clase: "grupo" }, el("label", { for: "dia" }, "Día"), selDia),
-    el("div", { clase: "fila" },
-      el("div", { clase: "grupo" }, el("label", { for: "inicio" }, "Inicio"), inicio),
-      el("div", { clase: "grupo" }, el("label", { for: "fin" }, "Fin"), fin)),
+    campo("Asistente", selAsistente),
+    campo("Día", selDia),
+    el("div", { clase: "fila" }, campo("Inicio", inicio), campo("Fin", fin)),
     pistas,
     el("div", { clase: "acciones" }, boton),
     el("p", { clase: "ayuda" }, "El sistema revisa traslapes en todos los laboratorios y campus, el tope semanal y que el laboratorio no tenga ya un responsable a esa hora."),

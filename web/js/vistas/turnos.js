@@ -1,5 +1,6 @@
 // CU-08 Responder turno pendiente: pensado para el celular (botones grandes, una columna).
 import { api } from "../api.js";
+import { encabezado, lista } from "../componentes.js";
 import { avisar, avisarError, confirmar, el, insigniaEstado } from "../dom.js";
 import { fechaCorta, hora } from "../formatos.js";
 
@@ -35,20 +36,17 @@ export async function mostrar(contenedor, contexto) {
       acciones);
 
   contenedor.replaceChildren(
-    el("div", { clase: "encabezado" },
-      el("div", {}, el("h1", {}, "Mis turnos"), el("p", {}, "Próximas cuatro semanas"))),
+    encabezado("Mis turnos", "Próximas cuatro semanas"),
     el("section", { "aria-labelledby": "t-pendientes" },
       el("h2", { id: "t-pendientes" }, `Esperan su respuesta (${pendientes.length})`),
-      pendientes.length
-        ? el("ul", { clase: "lista" },
-            pendientes.map((t) =>
-              fila(t, el("div", { clase: "acciones" },
-                el("button", { clase: "boton boton--primario", onclick: () => responder(t, true) }, "Aceptar"),
-                el("button", { clase: "boton boton--peligro", onclick: () => responder(t, false) }, "Rechazar")))))
-        : el("p", { clase: "vacio" }, "No tiene turnos pendientes."),
+      lista(pendientes, (t) =>
+        fila(t, el("div", { clase: "acciones" },
+          el("button", { clase: "boton boton--primario", onclick: () => responder(t, true) }, "Aceptar"),
+          el("button", { clase: "boton boton--peligro", onclick: () => responder(t, false) }, "Rechazar"))),
+      "No tiene turnos pendientes."),
       el("p", { clase: "ayuda" }, "Un turno queda pendiente cuando se le asigna fuera de la disponibilidad que declaró al postularse.")),
     el("section", { "aria-labelledby": "t-proximos", style: "margin-top:1.5rem" },
       el("h2", { id: "t-proximos" }, "Próximos turnos confirmados"),
-      proximos.length ? el("ul", { clase: "lista" }, proximos.map((t) => fila(t, null))) : el("p", { clase: "vacio" }, "No tiene turnos próximos.")),
+      lista(proximos, (t) => fila(t, null), "No tiene turnos próximos.")),
   );
 }

@@ -1,6 +1,7 @@
 // CU-19 Cerrar el mes. Es irreversible, así que se confirma con un diálogo que
 // lo dice explícitamente (prevención de errores).
 import { api } from "../api.js";
+import { campo, encabezado, lista, tarjeta, vacio } from "../componentes.js";
 import { avisar, avisarError, confirmar, el } from "../dom.js";
 import { aFecha, colones, decimal, fechaHora, horas, nombreMes } from "../formatos.js";
 
@@ -55,28 +56,24 @@ export async function mostrar(contenedor, contexto) {
   }
 
   contenedor.replaceChildren(
-    el("div", { clase: "encabezado" },
-      el("div", {}, el("h1", {}, "Cierre de mes"),
-        el("p", {}, "Consolida las horas reales (marcas de entrada y salida) y calcula el pago para Becas."))),
+    encabezado("Cierre de mes", "Consolida las horas reales (marcas de entrada y salida) y calcula el pago para Becas."),
     el("div", { clase: "columnas" },
-      el("section", { clase: "tarjeta", "aria-label": "Resultado del cierre" },
-        detalle ? vistaDetalle(detalle) : el("p", { clase: "vacio" }, "Cierre un mes o elija uno de la lista para ver el detalle.")),
+      tarjeta({ etiqueta: "Resultado del cierre" },
+        detalle ? vistaDetalle(detalle) : vacio("Cierre un mes o elija uno de la lista para ver el detalle.")),
       el("div", { clase: "formulario" },
         el("form", { clase: "tarjeta formulario", onsubmit: cerrar },
           el("h2", {}, "Cerrar un mes"),
-          el("div", { clase: "grupo" }, el("label", { for: "mes" }, "Mes"), selMes),
+          campo("Mes", selMes),
           el("p", { clase: "nota nota--info" }, "Solo se puede cerrar un mes que ya terminó. Las tarifas se toman del tarifario vigente en cada fecha."),
           el("div", { clase: "acciones" }, el("button", { clase: "boton boton--primario", type: "submit", disabled: !selMes.value }, "Cerrar mes"))),
-        el("section", { clase: "tarjeta", "aria-labelledby": "historial" },
-          el("h2", { id: "historial" }, "Meses cerrados"),
-          cierres.length
-            ? el("ul", { clase: "lista" }, cierres.map((c) =>
-                el("li", { clase: "lista__item" },
-                  el("span", {}, el("strong", {}, `${nombreMes(c.mes)} ${c.anio}`), el("br"), `${colones(c.total)} · ${c.asistentes} asistentes`),
-                  el("span", { clase: "acciones" },
-                    el("button", { clase: "boton", onclick: () => ver(c) }, "Ver"),
-                    botonDescarga(c)))))
-            : el("p", { clase: "vacio" }, "Todavía no se ha cerrado ningún mes.")))),
+        tarjeta({ titulo: "Meses cerrados", id: "historial" },
+          lista(cierres, (c) =>
+            el("li", { clase: "lista__item" },
+              el("span", {}, el("strong", {}, `${nombreMes(c.mes)} ${c.anio}`), el("br"), `${colones(c.total)} · ${c.asistentes} asistentes`),
+              el("span", { clase: "acciones" },
+                el("button", { clase: "boton", onclick: () => ver(c) }, "Ver"),
+                botonDescarga(c))),
+          "Todavía no se ha cerrado ningún mes.")))),
   );
 }
 

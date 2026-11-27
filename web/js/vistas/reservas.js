@@ -2,6 +2,7 @@
 // solo ofrecen lo permitido (dentro de una franja abierta, máximo 2 h), así esos
 // errores no se pueden cometer desde la pantalla.
 import { api } from "../api.js";
+import { campo, encabezado, lista, tarjeta, vacio } from "../componentes.js";
 import { avisar, avisarError, el, insigniaEstado } from "../dom.js";
 import { aFecha, aHora, aMinutos, fechaCorta, hora, isoFecha, sumarMinutos } from "../formatos.js";
 
@@ -66,35 +67,29 @@ export async function mostrar(contenedor, contexto) {
             : "Libre todo el horario abierto"))));
 
   contenedor.replaceChildren(
-    el("div", { clase: "encabezado" },
-      el("div", {}, el("h1", {}, "Reservar una máquina"),
-        el("p", {}, "Máximo 2 horas por reserva, una reserva activa a la vez y 6 horas por semana."))),
+    encabezado("Reservar una máquina", "Máximo 2 horas por reserva, una reserva activa a la vez y 6 horas por semana."),
     el("div", { clase: "columnas" },
-      el("section", { clase: "tarjeta", "aria-label": "Máquinas" },
-        el("div", { clase: "fila" },
-          el("div", { clase: "grupo" }, el("label", { for: "lab-r" }, "Laboratorio"), selLab),
-          el("div", { clase: "grupo" }, el("label", { for: "fecha-r" }, "Fecha"), inFecha)),
+      tarjeta({ etiqueta: "Máquinas" },
+        el("div", { clase: "fila" }, campo("Laboratorio", selLab), campo("Fecha", inFecha)),
         el("h2", { style: "margin-top:1rem" }, `${fechaCorta(estado.fecha)} · ${ocupacion.laboratorio.nombre}`),
         franjas,
         maquinas),
       el("div", { clase: "formulario" },
-        el("section", { clase: "tarjeta" },
+        tarjeta({},
           // Hora del servidor (ADR-0009), no la del navegador.
           formularioReserva(ocupacion, estado.fecha === hoy ? aMinutos(hora(contexto.yo.ahora)) : 0, recargar)),
-        el("section", { clase: "tarjeta", "aria-labelledby": "mis-reservas" },
-          el("h2", { id: "mis-reservas" }, "Mis reservas"),
-          mias.length
-            ? el("ul", { clase: "lista" }, mias.map((r) =>
-                el("li", {}, el("strong", {}, `${fechaCorta(r.inicio)} ${hora(r.inicio)}–${hora(r.fin)}`), ` · ${r.maquina_id.replace("M-", "")} `, insigniaEstado(r.estado),
-                  r.estado === "ACTIVA" ? el("p", { clase: "ayuda" }, `Preséntese antes de las ${hora(r.limite_de_llegada)} o se libera sola.`) : null)))
-            : el("p", { clase: "vacio" }, "Todavía no tiene reservas.")))),
+        tarjeta({ titulo: "Mis reservas", id: "mis-reservas" },
+          lista(mias, (r) =>
+            el("li", {}, el("strong", {}, `${fechaCorta(r.inicio)} ${hora(r.inicio)}–${hora(r.fin)}`), ` · ${r.maquina_id.replace("M-", "")} `, insigniaEstado(r.estado),
+              r.estado === "ACTIVA" ? el("p", { clase: "ayuda" }, `Preséntese antes de las ${hora(r.limite_de_llegada)} o se libera sola.`) : null),
+          "Todavía no tiene reservas.")))),
   );
 }
 
 function formularioReserva(ocupacion, desde, recargar) {
   const maquina = ocupacion.maquinas.find((m) => m.id === estado.maquina);
   if (!maquina) {
-    return el("div", {}, el("h2", {}, "Nueva reserva"), el("p", { clase: "vacio" }, "Elija una máquina disponible de la lista."));
+    return el("div", {}, el("h2", {}, "Nueva reserva"), vacio("Elija una máquina disponible de la lista."));
   }
   const franjas = franjasEnMinutos(ocupacion.franjas_abiertas)
     .map((f) => ({ ...f, inicios: horasDeInicio(f, desde) }))
@@ -142,9 +137,7 @@ function formularioReserva(ocupacion, desde, recargar) {
       },
     },
     el("h2", {}, `Nueva reserva · ${maquina.codigo}`),
-    el("div", { clase: "fila" },
-      el("div", { clase: "grupo" }, el("label", { for: "inicio-r" }, "Hora de inicio"), inicio),
-      el("div", { clase: "grupo" }, el("label", { for: "duracion-r" }, "Duración"), duracion)),
+    el("div", { clase: "fila" }, campo("Hora de inicio", inicio), campo("Duración", duracion)),
     resumen,
     el("div", { clase: "acciones" }, boton));
 }
