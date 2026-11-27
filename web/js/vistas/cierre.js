@@ -1,8 +1,8 @@
 // CU-19 Cerrar el mes. Es irreversible, así que se confirma con un diálogo que
 // lo dice explícitamente (prevención de errores).
 import { api } from "../api.js";
-import { campo, encabezado, lista, tarjeta, vacio } from "../componentes.js";
-import { avisar, avisarError, confirmar, el } from "../dom.js";
+import { botonAccion, campo, conBotonOcupado, encabezado, lista, tarjeta, vacio } from "../componentes.js";
+import { avisar, confirmar, el } from "../dom.js";
 import { aFecha, colones, decimal, fechaHora, horas, nombreMes } from "../formatos.js";
 
 let detalle = null;
@@ -25,6 +25,7 @@ export async function mostrar(contenedor, contexto) {
   const selMes = el("select", { id: "mes", clase: "campo" }, opciones);
   selMes.value = `${anterior.getFullYear()}-${anterior.getMonth() + 1}`;
   if (selMes.selectedOptions[0]?.disabled) selMes.value = "";
+  const botonCerrar = el("button", { clase: "boton boton--primario", type: "submit", disabled: !selMes.value }, "Cerrar mes");
 
   async function cerrar(evento) {
     evento.preventDefault();
@@ -36,24 +37,19 @@ export async function mostrar(contenedor, contexto) {
       "Cerrar el mes",
     );
     if (!ok) return;
-    try {
+    await conBotonOcupado(botonCerrar, async () => {
       detalle = await api.cerrarMes(anio, mes);
       avisar("Mes cerrado", `Total a pagar: ${colones(detalle.total)}. El archivo para Becas está listo.`);
       await contexto.refrescarAvisos();
-      recargar();
-    } catch (error) {
-      avisarError(error);
-    }
+      await recargar();
+    });
   }
 
-  async function ver(c) {
-    try {
+  const botonVer = (c) =>
+    botonAccion("Ver", async () => {
       detalle = await api.cierre(c.anio, c.mes);
-      recargar();
-    } catch (error) {
-      avisarError(error);
-    }
-  }
+      await recargar();
+    });
 
   contenedor.replaceChildren(
     encabezado("Cierre de mes", "Consolida las horas reales (marcas de entrada y salida) y calcula el pago para Becas."),
@@ -65,37 +61,27 @@ export async function mostrar(contenedor, contexto) {
           el("h2", {}, "Cerrar un mes"),
           campo("Mes", selMes),
           el("p", { clase: "nota nota--info" }, "Solo se puede cerrar un mes que ya terminó. Las tarifas se toman del tarifario vigente en cada fecha."),
-          el("div", { clase: "acciones" }, el("button", { clase: "boton boton--primario", type: "submit", disabled: !selMes.value }, "Cerrar mes"))),
+          el("div", { clase: "acciones" }, botonCerrar)),
         tarjeta({ titulo: "Meses cerrados", id: "historial" },
           lista(cierres, (c) =>
             el("li", { clase: "lista__item" },
               el("span", {}, el("strong", {}, `${nombreMes(c.mes)} ${c.anio}`), el("br"), `${colones(c.total)} · ${c.asistentes} asistentes`),
-              el("span", { clase: "acciones" },
-                el("button", { clase: "boton", onclick: () => ver(c) }, "Ver"),
-                botonDescarga(c))),
+              el("span", { clase: "acciones" }, botonVer(c), botonDescarga(c))),
           "Todavía no se ha cerrado ningún mes.")))),
   );
 }
 
 function botonDescarga(c) {
-  return el("button", {
-    clase: "boton",
-    onclick: async () => {
-      try {
-        const respuesta = await api.archivoBecas(c.anio, c.mes);
-        const enlace = el("a", { href: URL.createObjectURL(await respuesta.blob()), download: `becas-${c.anio}-${String(c.mes).padStart(2, "0")}.csv` });
-        // Firefox necesita el enlace dentro del documento, y si la URL se revoca justo
-        // después del clic puede cortar la descarga: se revoca un momento después.
-        document.body.append(enlace);
-        enlace.click();
-        enlace.remove();
-        setTimeout(() => URL.revokeObjectURL(enlace.href), 1000);
-      } catch (error) {
-        avisarError(error);
-      }
-    },
-    "aria-label": `Descargar CSV de ${nombreMes(c.mes)} ${c.anio}`,
-  }, "CSV");
+  return botonAccion("CSV", async () => {
+    const respuesta = await api.archivoBecas(c.anio, c.mes);
+    const enlace = el("a", { href: URL.createObjectURL(await respuesta.blob()), download: `becas-${c.anio}-${String(c.mes).padStart(2, "0")}.csv` });
+    // Firefox necesita el enlace dentro del documento, y si la URL se revoca justo
+    // después del clic puede cortar la descarga: se revoca un momento después.
+    document.body.append(enlace);
+    enlace.click();
+    enlace.remove();
+    setTimeout(() => URL.revokeObjectURL(enlace.href), 1000);
+  }, { "aria-label": `Descargar CSV de ${nombreMes(c.mes)} ${c.anio}` });
 }
 
 function vistaDetalle(c) {

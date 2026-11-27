@@ -2,8 +2,8 @@
 // El formulario anticipa las reglas (tope, disponibilidad) para prevenir errores,
 // pero la decisión final siempre es del servidor (el dominio).
 import { api } from "../api.js";
-import { campo, encabezado, tarjeta } from "../componentes.js";
-import { avisar, avisarError, el, insigniaEstado } from "../dom.js";
+import { campo, conBotonOcupado, encabezado, navegacionSemana, selectorLaboratorio, tarjeta } from "../componentes.js";
+import { avisar, el, insigniaEstado } from "../dom.js";
 import { DIAS, aFecha, fechaCorta, hora, horas, isoFecha, minutosEntre, sumarDias } from "../formatos.js";
 
 const estado = { laboratorio: null, fecha: null };
@@ -25,39 +25,27 @@ export async function mostrar(contenedor, { yo, refrescarAvisos }) {
 
   const selectorLab =
     propios.length > 1
-      ? campo("Laboratorio",
-          el("select", { id: "lab", clase: "campo campo--compacto", onchange: (e) => { estado.laboratorio = e.target.value; recargar(); } },
-            propios.map((l) => el("option", { value: l.id, selected: l.id === estado.laboratorio }, `${l.nombre} · ${l.campus}`))))
+      ? selectorLaboratorio({
+          id: "lab", laboratorios: propios, actual: estado.laboratorio, compacto: true,
+          alCambiar: (id) => { estado.laboratorio = id; recargar(); },
+        })
       : null;
-
-  const moverSemana = (dias) => () => {
-    estado.fecha = isoFecha(sumarDias(lunes, dias));
-    recargar();
-  };
 
   contenedor.replaceChildren(
     encabezado(`Horario · ${laboratorio.nombre}`, `${laboratorio.campus} · semana ${horario.semana}`,
-      el("div", { clase: "navegacion-semana" },
-        selectorLab,
-        el("button", { clase: "boton", onclick: moverSemana(-7), "aria-label": "Semana anterior" }, "‹ Anterior"),
-        el("button", { clase: "boton", onclick: () => { estado.fecha = isoFecha(hoy); recargar(); } }, "Hoy"),
-        el("button", { clase: "boton", onclick: moverSemana(7), "aria-label": "Semana siguiente" }, "Siguiente ›"))),
+      navegacionSemana({ lunes, hoy, alCambiar: (fecha) => { estado.fecha = fecha; recargar(); } }, selectorLab)),
     el("div", { clase: "columnas" },
       tarjeta({ etiqueta: "Turnos de la semana" }, vistaSemana(lunes, horario.turnos, hoy)),
       tarjeta({ etiquetadaPor: "titulo-asignar" },
         formularioAsignar(lunes, hoy, asistentes, async (datos) => {
-          try {
-            const r = await api.asignarTurno({ ...datos, laboratorio_id: estado.laboratorio });
-            if (r.requiere_aceptacion) {
-              avisar("Turno enviado al asistente", "Quedó pendiente hasta que lo acepte, porque está fuera de su disponibilidad.");
-            } else {
-              avisar("Turno asignado", "El turno quedó confirmado en el horario.");
-            }
-            await refrescarAvisos();
-            recargar();
-          } catch (error) {
-            avisarError(error);
+          const r = await api.asignarTurno({ ...datos, laboratorio_id: estado.laboratorio });
+          if (r.requiere_aceptacion) {
+            avisar("Turno enviado al asistente", "Quedó pendiente hasta que lo acepte, porque está fuera de su disponibilidad.");
+          } else {
+            avisar("Turno asignado", "El turno quedó confirmado en el horario.");
           }
+          await refrescarAvisos();
+          await recargar();
         }))),
   );
 }
@@ -144,11 +132,10 @@ function formularioAsignar(lunes, hoy, asistentes, alEnviar) {
 
   return el("form", {
       clase: "formulario",
-      onsubmit: async (evento) => {
+      onsubmit: (evento) => {
         evento.preventDefault();
-        boton.disabled = true;
-        await alEnviar({ asistente_id: selAsistente.value, dia: selDia.value, hora_inicio: inicio.value, hora_fin: fin.value });
-        boton.disabled = false;
+        conBotonOcupado(boton, () =>
+          alEnviar({ asistente_id: selAsistente.value, dia: selDia.value, hora_inicio: inicio.value, hora_fin: fin.value }));
       },
     },
     el("h2", { id: "titulo-asignar" }, "Asignar turno"),

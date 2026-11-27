@@ -2,8 +2,8 @@
 // solo ofrecen lo permitido (dentro de una franja abierta, máximo 2 h), así esos
 // errores no se pueden cometer desde la pantalla.
 import { api } from "../api.js";
-import { campo, encabezado, lista, tarjeta, vacio } from "../componentes.js";
-import { avisar, avisarError, el, insigniaEstado } from "../dom.js";
+import { campo, conBotonOcupado, encabezado, lista, selectorLaboratorio, tarjeta, vacio } from "../componentes.js";
+import { avisar, el, insigniaEstado } from "../dom.js";
 import { aFecha, aHora, aMinutos, fechaCorta, hora, isoFecha, sumarMinutos } from "../formatos.js";
 
 const estado = { laboratorio: null, fecha: null, maquina: null };
@@ -42,8 +42,10 @@ export async function mostrar(contenedor, contexto) {
   const abierto = ocupacion.franjas_abiertas;
   if (!abierto.length || !ocupacion.maquinas.some((m) => m.id === estado.maquina && m.en_servicio)) estado.maquina = null;
 
-  const selLab = el("select", { id: "lab-r", clase: "campo", onchange: (e) => { estado.laboratorio = e.target.value; estado.maquina = null; recargar(); } },
-    laboratorios.map((l) => el("option", { value: l.id, selected: l.id === estado.laboratorio }, `${l.nombre} · ${l.campus}`)));
+  const selectorLab = selectorLaboratorio({
+    id: "lab-r", laboratorios, actual: estado.laboratorio,
+    alCambiar: (id) => { estado.laboratorio = id; estado.maquina = null; recargar(); },
+  });
   const inFecha = el("input", { id: "fecha-r", type: "date", clase: "campo", min: hoy, value: estado.fecha,
     onchange: (e) => { estado.fecha = e.target.value; recargar(); } });
 
@@ -70,7 +72,7 @@ export async function mostrar(contenedor, contexto) {
     encabezado("Reservar una máquina", "Máximo 2 horas por reserva, una reserva activa a la vez y 6 horas por semana."),
     el("div", { clase: "columnas" },
       tarjeta({ etiqueta: "Máquinas" },
-        el("div", { clase: "fila" }, campo("Laboratorio", selLab), campo("Fecha", inFecha)),
+        el("div", { clase: "fila" }, selectorLab, campo("Fecha", inFecha)),
         el("h2", { style: "margin-top:1rem" }, `${fechaCorta(estado.fecha)} · ${ocupacion.laboratorio.nombre}`),
         franjas,
         maquinas),
@@ -123,17 +125,15 @@ function formularioReserva(ocupacion, desde, recargar) {
 
   return el("form", {
       clase: "formulario",
-      onsubmit: async (evento) => {
+      onsubmit: (evento) => {
         evento.preventDefault();
-        boton.disabled = true;
-        try {
+        conBotonOcupado(boton, async () => {
           const r = await api.reservar({ maquina_id: maquina.id, inicio: `${estado.fecha}T${inicio.value}`, fin: `${estado.fecha}T${calcularFin()}` });
           avisar("Reserva confirmada", `${maquina.codigo}, ${inicio.value}–${calcularFin()}. Preséntese antes de las ${hora(r.limite_de_llegada)}.`);
-          recargar();
-        } catch (error) {
-          avisarError(error);
-          boton.disabled = false;
-        }
+          // Se espera a que la vista se vuelva a pintar antes de soltar el botón,
+          // para que no quede un instante en que se pueda reservar dos veces.
+          await recargar();
+        });
       },
     },
     el("h2", {}, `Nueva reserva · ${maquina.codigo}`),
