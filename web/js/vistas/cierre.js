@@ -1,7 +1,9 @@
 // CU-19 Cerrar el mes. Es irreversible, así que se confirma con un diálogo que
 // lo dice explícitamente (prevención de errores).
 import { api } from "../api.js";
-import { aFecha, avisar, avisarError, colones, confirmar, decimal, el, horas, nombreMes } from "../ui.js";
+import { botonAccion, campo, conBotonOcupado, encabezado, lista, tarjeta, vacio } from "../componentes.js";
+import { avisar, confirmar, el } from "../dom.js";
+import { aFecha, colones, decimal, fechaHora, horas, nombreMes } from "../formatos.js";
 
 let detalle = null;
 
@@ -23,6 +25,7 @@ export async function mostrar(contenedor, contexto) {
   const selMes = el("select", { id: "mes", clase: "campo" }, opciones);
   selMes.value = `${anterior.getFullYear()}-${anterior.getMonth() + 1}`;
   if (selMes.selectedOptions[0]?.disabled) selMes.value = "";
+  const botonCerrar = el("button", { clase: "boton boton--primario", type: "submit", disabled: !selMes.value }, "Cerrar mes");
 
   async function cerrar(evento) {
     evento.preventDefault();
@@ -34,73 +37,58 @@ export async function mostrar(contenedor, contexto) {
       "Cerrar el mes",
     );
     if (!ok) return;
-    try {
+    await conBotonOcupado(botonCerrar, async () => {
       detalle = await api.cerrarMes(anio, mes);
       avisar("Mes cerrado", `Total a pagar: ${colones(detalle.total)}. El archivo para Becas está listo.`);
       await contexto.refrescarAvisos();
-      recargar();
-    } catch (error) {
-      avisarError(error);
-    }
+      await recargar();
+    });
   }
 
-  async function ver(c) {
-    try {
+  const botonVer = (c) =>
+    botonAccion("Ver", async () => {
       detalle = await api.cierre(c.anio, c.mes);
-      recargar();
-    } catch (error) {
-      avisarError(error);
-    }
-  }
+      await recargar();
+    });
 
   contenedor.replaceChildren(
-    el("div", { clase: "encabezado" },
-      el("div", {}, el("h1", {}, "Cierre de mes"),
-        el("p", {}, "Consolida las horas reales (marcas de entrada y salida) y calcula el pago para Becas."))),
+    encabezado("Cierre de mes", "Consolida las horas reales (marcas de entrada y salida) y calcula el pago para Becas."),
     el("div", { clase: "columnas" },
-      el("section", { clase: "tarjeta", "aria-label": "Resultado del cierre" },
-        detalle ? vistaDetalle(detalle) : el("p", { clase: "vacio" }, "Cierre un mes o elija uno de la lista para ver el detalle.")),
+      tarjeta({ etiqueta: "Resultado del cierre" },
+        detalle ? vistaDetalle(detalle) : vacio("Cierre un mes o elija uno de la lista para ver el detalle.")),
       el("div", { clase: "formulario" },
         el("form", { clase: "tarjeta formulario", onsubmit: cerrar },
           el("h2", {}, "Cerrar un mes"),
-          el("div", { clase: "grupo" }, el("label", { for: "mes" }, "Mes"), selMes),
+          campo("Mes", selMes),
           el("p", { clase: "nota nota--info" }, "Solo se puede cerrar un mes que ya terminó. Las tarifas se toman del tarifario vigente en cada fecha."),
-          el("div", { clase: "acciones" }, el("button", { clase: "boton boton--primario", type: "submit", disabled: !selMes.value }, "Cerrar mes"))),
-        el("section", { clase: "tarjeta", "aria-labelledby": "historial" },
-          el("h2", { id: "historial" }, "Meses cerrados"),
-          cierres.length
-            ? el("ul", { clase: "lista" }, cierres.map((c) =>
-                el("li", { clase: "lista__item" },
-                  el("span", {}, el("strong", {}, `${nombreMes(c.mes)} ${c.anio}`), el("br"), `${colones(c.total)} · ${c.asistentes} asistentes`),
-                  el("span", { clase: "acciones" },
-                    el("button", { clase: "boton", onclick: () => ver(c) }, "Ver"),
-                    botonDescarga(c)))))
-            : el("p", { clase: "vacio" }, "Todavía no se ha cerrado ningún mes.")))),
+          el("div", { clase: "acciones" }, botonCerrar)),
+        tarjeta({ titulo: "Meses cerrados", id: "historial" },
+          lista(cierres, (c) =>
+            el("li", { clase: "lista__item" },
+              el("span", {}, el("strong", {}, `${nombreMes(c.mes)} ${c.anio}`), el("br"), `${colones(c.total)} · ${c.asistentes} asistentes`),
+              el("span", { clase: "acciones" }, botonVer(c), botonDescarga(c))),
+          "Todavía no se ha cerrado ningún mes.")))),
   );
 }
 
 function botonDescarga(c) {
-  return el("button", {
-    clase: "boton",
-    onclick: async () => {
-      try {
-        const respuesta = await api.archivoBecas(c.anio, c.mes);
-        const enlace = el("a", { href: URL.createObjectURL(await respuesta.blob()), download: `becas-${c.anio}-${String(c.mes).padStart(2, "0")}.csv` });
-        enlace.click();
-        URL.revokeObjectURL(enlace.href);
-      } catch (error) {
-        avisarError(error);
-      }
-    },
-    "aria-label": `Descargar CSV de ${nombreMes(c.mes)} ${c.anio}`,
-  }, "CSV");
+  return botonAccion("CSV", async () => {
+    const respuesta = await api.archivoBecas(c.anio, c.mes);
+    const enlace = el("a", { href: URL.createObjectURL(await respuesta.blob()), download: `becas-${c.anio}-${String(c.mes).padStart(2, "0")}.csv` });
+    // Firefox necesita el enlace dentro del documento, y si la URL se revoca justo
+    // después del clic puede cortar la descarga: se revoca un momento después.
+    document.body.append(enlace);
+    enlace.click();
+    enlace.remove();
+    setTimeout(() => URL.revokeObjectURL(enlace.href), 1000);
+  }, { "aria-label": `Descargar CSV de ${nombreMes(c.mes)} ${c.anio}` });
 }
 
 function vistaDetalle(c) {
   const conAlerta = c.liquidaciones.filter((li) => Number(li.horas_no_pagadas) > 0);
   return el("div", {},
     el("h2", {}, `${nombreMes(c.mes)} ${c.anio}`),
-    el("p", { clase: "ayuda" }, `Cerrado el ${c.cerrado_en.replace("T", " a las ").slice(0, 22)}.`),
+    el("p", { clase: "ayuda" }, `Cerrado el ${fechaHora(c.cerrado_en)}.`),
     conAlerta.length
       ? el("p", { clase: "nota nota--aviso" },
           `Hay horas trabajadas por encima del tope semanal que no se pagan: ${conAlerta.map((li) => `${li.nombre} (${horas(li.horas_no_pagadas)})`).join(", ")}.`)

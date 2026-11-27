@@ -1,6 +1,6 @@
 // Punto de entrada: sesión simulada, pestañas por rol y avisos.
 import { api, usarUsuario } from "./api.js";
-import { avisarError, el } from "./ui.js";
+import { avisarError, el } from "./dom.js";
 import * as cierre from "./vistas/cierre.js";
 import * as horario from "./vistas/horario.js";
 import * as reservas from "./vistas/reservas.js";
