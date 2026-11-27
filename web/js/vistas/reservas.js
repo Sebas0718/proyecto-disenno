@@ -1,10 +1,40 @@
-// CU-15 Reservar máquina. La duración se elige de una lista (máximo 2 h), así el
-// error "más de dos horas" no se puede cometer desde la pantalla.
+// CU-15 Reservar máquina. La hora de inicio y la duración se eligen de listas que
+// solo ofrecen lo permitido (dentro de una franja abierta, máximo 2 h), así esos
+// errores no se pueden cometer desde la pantalla.
 import { api } from "../api.js";
 import { aFecha, avisar, avisarError, el, fechaCorta, hora, insigniaEstado, isoFecha } from "../ui.js";
 
 const estado = { laboratorio: null, fecha: null, maquina: null };
 const DURACIONES = [30, 60, 90, 120];
+const PASO = 15; // minutos entre una hora de inicio posible y la siguiente
+
+const aMinutos = (hhmm) => {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+};
+const aHora = (minutos) => `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`;
+
+// Franjas abiertas del día en minutos; las seguidas se unen, igual que `cubren()` del
+// dominio. Un turno empieza y termina el mismo día, así que ninguna pasa de medianoche.
+function franjasEnMinutos(franjas) {
+  const unidas = [];
+  const enMinutos = franjas.map((f) => ({ inicio: aMinutos(hora(f.inicio)), fin: aMinutos(hora(f.fin)) }));
+  for (const f of enMinutos.sort((a, b) => a.inicio - b.inicio)) {
+    const ultima = unidas.at(-1);
+    if (ultima && f.inicio <= ultima.fin) ultima.fin = Math.max(ultima.fin, f.fin);
+    else unidas.push(f);
+  }
+  return unidas;
+}
+
+// Horas de inicio de una franja que dejan caber al menos la reserva más corta y que
+// no han pasado: `desde` es la hora actual (en minutos) si la fecha es hoy, o 0.
+function horasDeInicio(franja, desde) {
+  const inicios = [];
+  const primera = Math.max(franja.inicio, Math.ceil(desde / PASO) * PASO);
+  for (let m = primera; m + DURACIONES[0] <= franja.fin; m += PASO) inicios.push(m);
+  return inicios;
+}
 
 export async function mostrar(contenedor, contexto) {
   const hoy = isoFecha(aFecha(contexto.yo.ahora));
@@ -53,7 +83,9 @@ export async function mostrar(contenedor, contexto) {
         franjas,
         maquinas),
       el("div", { clase: "formulario" },
-        el("section", { clase: "tarjeta" }, formularioReserva(ocupacion, recargar)),
+        el("section", { clase: "tarjeta" },
+          // Hora del servidor (ADR-0009), no la del navegador.
+          formularioReserva(ocupacion, estado.fecha === hoy ? aMinutos(hora(contexto.yo.ahora)) : 0, recargar)),
         el("section", { clase: "tarjeta", "aria-labelledby": "mis-reservas" },
           el("h2", { id: "mis-reservas" }, "Mis reservas"),
           mias.length
@@ -64,25 +96,37 @@ export async function mostrar(contenedor, contexto) {
   );
 }
 
-function formularioReserva(ocupacion, recargar) {
+function formularioReserva(ocupacion, desde, recargar) {
   const maquina = ocupacion.maquinas.find((m) => m.id === estado.maquina);
   if (!maquina) {
     return el("div", {}, el("h2", {}, "Nueva reserva"), el("p", { clase: "vacio" }, "Elija una máquina disponible de la lista."));
   }
-  const primera = ocupacion.franjas_abiertas[0];
-  const inicio = el("input", { id: "inicio-r", type: "time", step: "900", clase: "campo", required: true,
-    value: primera ? hora(primera.inicio) : "08:00" });
+  const franjas = franjasEnMinutos(ocupacion.franjas_abiertas)
+    .map((f) => ({ ...f, inicios: horasDeInicio(f, desde) }))
+    .filter((f) => f.inicios.length);
+  if (!franjas.length) {
+    return el("div", {}, el("h2", {}, `Nueva reserva · ${maquina.codigo}`),
+      el("p", { clase: "nota nota--aviso" }, "No quedan horas abiertas para reservar ese día. Elija otra fecha."));
+  }
+  const inicio = el("select", { id: "inicio-r", clase: "campo", required: true },
+    franjas.map((f) => el("optgroup", { label: `Abierto ${aHora(f.inicio)}–${aHora(f.fin)}` },
+      f.inicios.map((m) => el("option", { value: aHora(m) }, aHora(m))))));
   const duracion = el("select", { id: "duracion-r", clase: "campo" },
     DURACIONES.map((m) => el("option", { value: m, selected: m === 60 }, m < 60 ? `${m} minutos` : `${m / 60} h`)));
   const resumen = el("p", { clase: "ayuda", "aria-live": "polite" });
   const boton = el("button", { type: "submit", clase: "boton boton--primario" }, "Reservar");
 
-  const calcularFin = () => {
-    const [h, m] = inicio.value.split(":").map(Number);
-    const total = h * 60 + m + Number(duracion.value);
-    return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+  const calcularFin = () => aHora(aMinutos(inicio.value) + Number(duracion.value));
+  const actualizar = () => {
+    const desde = aMinutos(inicio.value);
+    const cierre = franjas.find((f) => f.inicio <= desde && desde < f.fin).fin;
+    // Las duraciones que terminarían con el laboratorio cerrado no se pueden elegir.
+    for (const opcion of duracion.options) opcion.disabled = desde + Number(opcion.value) > cierre;
+    if (duracion.selectedOptions[0].disabled) {
+      duracion.value = [...duracion.options].filter((o) => !o.disabled).at(-1).value;
+    }
+    resumen.textContent = `De ${inicio.value} a ${calcularFin()} (abierto hasta las ${aHora(cierre)}). Si no llega en 15 minutos, la reserva se libera.`;
   };
-  const actualizar = () => { resumen.textContent = `De ${inicio.value} a ${calcularFin()}. Si no llega en 15 minutos, la reserva se libera.`; };
   inicio.addEventListener("input", actualizar);
   duracion.addEventListener("input", actualizar);
   actualizar();
