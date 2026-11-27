@@ -98,6 +98,14 @@ export function fechaCorta(textoIso) {
   return `${DIAS[(fecha.getDay() + 6) % 7].slice(0, 3)} ${fecha.getDate()} ${MESES[fecha.getMonth()].slice(0, 3)}`;
 }
 
+// "1 de noviembre de 2026 a las 00:05": en 24 h, como el resto de la interfaz.
+// El texto ISO viene sin zona horaria y se lee como hora local (ADR-0009).
+const FECHA_Y_HORA = new Intl.DateTimeFormat("es-CR", { dateStyle: "long", timeStyle: "short", hourCycle: "h23" });
+
+export function fechaHora(textoIso) {
+  return FECHA_Y_HORA.format(new Date(textoIso.slice(0, 19)));
+}
+
 export function colones(texto) {
   return `₡${Number(texto).toLocaleString("es-CR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }

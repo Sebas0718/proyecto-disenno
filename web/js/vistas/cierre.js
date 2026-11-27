@@ -1,7 +1,7 @@
 // CU-19 Cerrar el mes. Es irreversible, así que se confirma con un diálogo que
 // lo dice explícitamente (prevención de errores).
 import { api } from "../api.js";
-import { aFecha, avisar, avisarError, colones, confirmar, decimal, el, horas, nombreMes } from "../ui.js";
+import { aFecha, avisar, avisarError, colones, confirmar, decimal, el, fechaHora, horas, nombreMes } from "../ui.js";
 
 let detalle = null;
 
@@ -86,8 +86,12 @@ function botonDescarga(c) {
       try {
         const respuesta = await api.archivoBecas(c.anio, c.mes);
         const enlace = el("a", { href: URL.createObjectURL(await respuesta.blob()), download: `becas-${c.anio}-${String(c.mes).padStart(2, "0")}.csv` });
+        // Firefox necesita el enlace dentro del documento, y si la URL se revoca justo
+        // después del clic puede cortar la descarga: se revoca un momento después.
+        document.body.append(enlace);
         enlace.click();
-        URL.revokeObjectURL(enlace.href);
+        enlace.remove();
+        setTimeout(() => URL.revokeObjectURL(enlace.href), 1000);
       } catch (error) {
         avisarError(error);
       }
@@ -100,7 +104,7 @@ function vistaDetalle(c) {
   const conAlerta = c.liquidaciones.filter((li) => Number(li.horas_no_pagadas) > 0);
   return el("div", {},
     el("h2", {}, `${nombreMes(c.mes)} ${c.anio}`),
-    el("p", { clase: "ayuda" }, `Cerrado el ${c.cerrado_en.replace("T", " a las ").slice(0, 22)}.`),
+    el("p", { clase: "ayuda" }, `Cerrado el ${fechaHora(c.cerrado_en)}.`),
     conAlerta.length
       ? el("p", { clase: "nota nota--aviso" },
           `Hay horas trabajadas por encima del tope semanal que no se pagan: ${conAlerta.map((li) => `${li.nombre} (${horas(li.horas_no_pagadas)})`).join(", ")}.`)
