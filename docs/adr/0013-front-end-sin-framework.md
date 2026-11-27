@@ -20,4 +20,4 @@ todo el código.
 
 ## Consecuencias
 - **A favor:** cero dependencias de front end, y abre en cualquier navegador moderno.
-- **En contra:** el DOM se actualiza "a mano". El helper `el()` de `ui.js` lo mantiene legible.
+- **En contra:** el DOM se actualiza "a mano". El helper `el()` de `dom.js` lo mantiene legible.

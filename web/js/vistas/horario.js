@@ -2,9 +2,8 @@
 // El formulario anticipa las reglas (tope, disponibilidad) para prevenir errores,
 // pero la decisión final siempre es del servidor (el dominio).
 import { api } from "../api.js";
-import {
-  DIAS, aFecha, avisar, avisarError, el, fechaCorta, hora, horas, insigniaEstado, isoFecha, sumarDias,
-} from "../ui.js";
+import { avisar, avisarError, el, insigniaEstado } from "../dom.js";
+import { DIAS, aFecha, fechaCorta, hora, horas, isoFecha, minutosEntre, sumarDias } from "../formatos.js";
 
 const estado = { laboratorio: null, fecha: null };
 
@@ -94,12 +93,6 @@ function cubre(bloques, inicio, fin) {
     if (cursor >= fin) return true;
   }
   return cursor >= fin;
-}
-
-function minutosEntre(inicio, fin) {
-  const [h1, m1] = inicio.split(":").map(Number);
-  const [h2, m2] = fin.split(":").map(Number);
-  return h2 * 60 + m2 - (h1 * 60 + m1);
 }
 
 function formularioAsignar(lunes, hoy, asistentes, alEnviar) {

@@ -2,17 +2,12 @@
 // solo ofrecen lo permitido (dentro de una franja abierta, máximo 2 h), así esos
 // errores no se pueden cometer desde la pantalla.
 import { api } from "../api.js";
-import { aFecha, avisar, avisarError, el, fechaCorta, hora, insigniaEstado, isoFecha } from "../ui.js";
+import { avisar, avisarError, el, insigniaEstado } from "../dom.js";
+import { aFecha, aHora, aMinutos, fechaCorta, hora, isoFecha, sumarMinutos } from "../formatos.js";
 
 const estado = { laboratorio: null, fecha: null, maquina: null };
 const DURACIONES = [30, 60, 90, 120];
 const PASO = 15; // minutos entre una hora de inicio posible y la siguiente
-
-const aMinutos = (hhmm) => {
-  const [h, m] = hhmm.split(":").map(Number);
-  return h * 60 + m;
-};
-const aHora = (minutos) => `${String(Math.floor(minutos / 60)).padStart(2, "0")}:${String(minutos % 60).padStart(2, "0")}`;
 
 // Franjas abiertas del día en minutos; las seguidas se unen, igual que `cubren()` del
 // dominio. Un turno empieza y termina el mismo día, así que ninguna pasa de medianoche.
@@ -116,7 +111,7 @@ function formularioReserva(ocupacion, desde, recargar) {
   const resumen = el("p", { clase: "ayuda", "aria-live": "polite" });
   const boton = el("button", { type: "submit", clase: "boton boton--primario" }, "Reservar");
 
-  const calcularFin = () => aHora(aMinutos(inicio.value) + Number(duracion.value));
+  const calcularFin = () => sumarMinutos(inicio.value, Number(duracion.value));
   const actualizar = () => {
     const desde = aMinutos(inicio.value);
     const cierre = franjas.find((f) => f.inicio <= desde && desde < f.fin).fin;

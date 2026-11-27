@@ -1,7 +1,8 @@
 // CU-19 Cerrar el mes. Es irreversible, así que se confirma con un diálogo que
 // lo dice explícitamente (prevención de errores).
 import { api } from "../api.js";
-import { aFecha, avisar, avisarError, colones, confirmar, decimal, el, fechaHora, horas, nombreMes } from "../ui.js";
+import { avisar, avisarError, confirmar, el } from "../dom.js";
+import { aFecha, colones, decimal, fechaHora, horas, nombreMes } from "../formatos.js";
 
 let detalle = null;
 

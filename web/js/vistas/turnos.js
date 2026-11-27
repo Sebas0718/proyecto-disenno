@@ -1,6 +1,7 @@
 // CU-08 Responder turno pendiente: pensado para el celular (botones grandes, una columna).
 import { api } from "../api.js";
-import { avisar, avisarError, confirmar, el, fechaCorta, hora, insigniaEstado } from "../ui.js";
+import { avisar, avisarError, confirmar, el, insigniaEstado } from "../dom.js";
+import { fechaCorta, hora } from "../formatos.js";
 
 export async function mostrar(contenedor, contexto) {
   const turnos = await api.misTurnos();
